@@ -16,6 +16,9 @@ repositories {
 
 val vertxVersion = "4.4.1"
 val junitJupiterVersion = "5.9.1"
+val guavaVersion = "31.1-jre"
+val jcToolsVersion = "4.0.1"
+val configVersion = "1.4.2"
 
 val mainVerticleName = "io.techcode.fluxy.Fluxy"
 val launcherClassName = "io.vertx.core.Launcher"
@@ -30,8 +33,9 @@ application {
 dependencies {
   implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
   implementation("io.vertx:vertx-core")
-  implementation("com.google.guava:guava:31.1-jre")
-  implementation("org.jctools:jctools-core:4.0.1")
+  implementation("com.google.guava:guava:$guavaVersion")
+  implementation("com.typesafe:config:$configVersion")
+  implementation("org.jctools:jctools-core:$jcToolsVersion")
   testImplementation("io.vertx:vertx-junit5")
   testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
 }

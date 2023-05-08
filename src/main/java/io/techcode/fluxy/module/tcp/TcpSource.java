@@ -1,6 +1,6 @@
 package io.techcode.fluxy.module.tcp;
 
-import io.techcode.fluxy.component.Pipe;
+import io.techcode.fluxy.component.ComponentConfig;
 import io.techcode.fluxy.component.Source;
 import io.techcode.fluxy.event.Event;
 import io.vertx.core.net.NetServer;
@@ -14,8 +14,8 @@ public class TcpSource extends Source {
   private final Map<String, NetSocket> connections;
   private NetServer server;
 
-  public TcpSource(Pipe out) {
-    super(out);
+  public TcpSource(ComponentConfig conf) {
+    super(conf.out().orElseThrow());
     connections = new HashMap<>();
   }
 
@@ -39,6 +39,7 @@ public class TcpSource extends Source {
       }
     });
     server.listen(8080, "0.0.0.0");
+    System.out.println("Listening on: 8080");
   }
 
   @Override

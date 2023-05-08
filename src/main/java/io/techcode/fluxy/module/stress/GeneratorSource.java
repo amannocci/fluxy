@@ -1,6 +1,7 @@
 package io.techcode.fluxy.module.stress;
 
 import com.google.common.collect.Iterators;
+import io.techcode.fluxy.component.ComponentConfig;
 import io.techcode.fluxy.component.Pipe;
 import io.techcode.fluxy.component.Source;
 import io.techcode.fluxy.event.Event;
@@ -14,9 +15,9 @@ public class GeneratorSource extends Source {
   private final Iterator<String> lines;
   private boolean isClosing = false;
 
-  public GeneratorSource(Pipe out, List<String> lines) {
-    super(out);
-    this.lines = Iterators.cycle(lines);
+  public GeneratorSource(ComponentConfig conf) {
+    super(conf.out().orElseThrow());
+    this.lines = Iterators.cycle(conf.options().getStringList("lines"));
   }
 
   @Override

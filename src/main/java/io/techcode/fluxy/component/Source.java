@@ -3,11 +3,10 @@ package io.techcode.fluxy.component;
 import com.google.common.base.MoreObjects;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
-import io.vertx.core.Vertx;
 
 public abstract class Source extends AbstractVerticle implements Component {
 
-  protected final Pipe out;
+  public final Pipe out;
   protected Mailbox pipeAvailableMailbox;
   protected Mailbox pipeUnavailableMailbox;
 

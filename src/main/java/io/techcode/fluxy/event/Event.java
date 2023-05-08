@@ -4,10 +4,10 @@ import io.netty.util.AttributeMap;
 import io.netty.util.DefaultAttributeMap;
 import io.vertx.core.json.JsonObject;
 
-public class Event {
-
-  private AttributeMap headers;
-  private JsonObject payload;
+public record Event(
+  AttributeMap headers,
+  JsonObject payload
+) {
 
   public Event() {
     this(new JsonObject());
@@ -15,15 +15,6 @@ public class Event {
 
   public Event(JsonObject payload) {
     this(new DefaultAttributeMap(), payload);
-  }
-
-  private Event(AttributeMap headers, JsonObject payload) {
-    this.headers = headers;
-    this.payload = payload;
-  }
-
-  public JsonObject getPayload() {
-    return payload;
   }
 
   public Event copy() {

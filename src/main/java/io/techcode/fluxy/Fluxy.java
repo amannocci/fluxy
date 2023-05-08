@@ -1,34 +1,42 @@
 package io.techcode.fluxy;
 
-import com.google.common.collect.Lists;
-import io.techcode.fluxy.component.Flow;
-import io.techcode.fluxy.component.Pipe;
-import io.techcode.fluxy.component.Sink;
-import io.techcode.fluxy.component.Source;
-import io.techcode.fluxy.module.core.MutateFlow;
-import io.techcode.fluxy.module.stress.BlackholeSink;
-import io.techcode.fluxy.module.stress.GeneratorSource;
-import io.techcode.fluxy.module.tcp.TcpSource;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import io.techcode.fluxy.pipeline.Pipeline;
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
+
+import java.util.Optional;
 
 public class Fluxy extends AbstractVerticle {
 
+  private Optional<String> mainPipelineId = Optional.empty();
+
   @Override
-  public void start() {
+  public void start(Promise<Void> startPromise){
     vertx.exceptionHandler(Throwable::printStackTrace);
 
-    Pipe pipe1 = new Pipe();
-    Pipe pipe2 = new Pipe();
-    //Source source = new GeneratorSource(pipe1, Lists.newArrayList("test"));
-    Source source = new TcpSource(pipe1);
-    Flow flow = new MutateFlow(pipe1, pipe2);
-    Sink sink = new BlackholeSink(pipe2);
-    Future<String> sourcesDeployed = vertx.deployVerticle(source, new DeploymentOptions().setWorker(source.isBlocking()));
-    sourcesDeployed
-      .flatMap(e -> vertx.deployVerticle(flow, new DeploymentOptions().setWorker(flow.isBlocking())))
-      .onSuccess(e -> vertx.deployVerticle(sink, new DeploymentOptions().setWorker(sink.isBlocking())));
+    Config conf = ConfigFactory.load();
+    Pipeline pipeline = new Pipeline(conf.getConfig("pipeline"));
+    vertx.deployVerticle(pipeline)
+      .onSuccess(id -> {
+        mainPipelineId = Optional.of(id);
+        startPromise.complete();
+      })
+      .onFailure(err -> {
+        err.printStackTrace();
+        startPromise.fail(err);
+        vertx.close();
+      });
+  }
+
+  @Override
+  public void stop(Promise<Void> stopPromise) {
+    var undeploy = mainPipelineId.map(id -> vertx.undeploy(id)).orElse(Future.succeededFuture());
+    undeploy
+      .onSuccess(e -> stopPromise.complete())
+      .onFailure(stopPromise::fail);
   }
 
 }

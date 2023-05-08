@@ -9,8 +9,8 @@ import org.jctools.queues.MessagePassingQueue.Consumer;
 
 public abstract class Flow extends AbstractVerticle implements Component, Handler<Void>, Consumer<Event> {
 
-  protected final Pipe in;
-  protected final Pipe out;
+  public final Pipe in;
+  public final Pipe out;
   protected Mailbox eventMailbox;
   protected Mailbox pipeAvailableMailbox;
   protected Mailbox pipeUnavailableMailbox;
