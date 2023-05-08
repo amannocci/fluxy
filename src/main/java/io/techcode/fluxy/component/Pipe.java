@@ -3,7 +3,7 @@ package io.techcode.fluxy.component;
 import com.google.common.base.MoreObjects;
 import io.techcode.fluxy.event.Event;
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.SpscArrayQueue;
+import org.jctools.queues.SpscUnboundedArrayQueue;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -12,7 +12,7 @@ public class Pipe {
 
   private static final AtomicInteger idTracker = new AtomicInteger(0);
   public final int id;
-  private final SpscArrayQueue<Event> queue;
+  private final SpscUnboundedArrayQueue<Event> queue;
   private final int lowWaterMark;
   private final int highWaterMark;
   private final AtomicBoolean isBackPressure;
@@ -26,7 +26,7 @@ public class Pipe {
 
   public Pipe(int capacity) {
     id = idTracker.incrementAndGet();
-    queue = new SpscArrayQueue<>(capacity);
+    queue = new SpscUnboundedArrayQueue<>(capacity);
     lowWaterMark = (int) (capacity * 0.10F);
     highWaterMark = (int) (capacity * 0.90F);
     isBackPressure = new AtomicBoolean(true);
