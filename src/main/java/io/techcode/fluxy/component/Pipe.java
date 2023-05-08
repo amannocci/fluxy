@@ -17,8 +17,8 @@ public class Pipe {
   private final int highWaterMark;
   private final AtomicBoolean isBackPressure;
   private volatile Mailbox onEventDispatcher;
-  private volatile Mailbox onLowPressureDispatcher;
-  private volatile Mailbox onHighPressureDispatcher;
+  private volatile Mailbox onAvailableDispatcher;
+  private volatile Mailbox onUnavailableDispatcher;
 
   public Pipe() {
     this(256);
@@ -36,12 +36,12 @@ public class Pipe {
     onEventDispatcher = mailbox;
   }
 
-  public void setLowPressureHandler(Mailbox mailbox) {
-    onLowPressureDispatcher = mailbox;
+  public void setAvailableHandler(Mailbox mailbox) {
+    onAvailableDispatcher = mailbox;
   }
 
-  public void setHighPressureHandler(Mailbox mailbox) {
-    onHighPressureDispatcher = mailbox;
+  public void setUnavailableHandler(Mailbox mailbox) {
+    onUnavailableDispatcher = mailbox;
   }
 
   public void pushOne(Event evt) {
@@ -91,14 +91,14 @@ public class Pipe {
   private synchronized void handleLowPressure() {
     if (isBackPressure.get() && queue.size() < lowWaterMark) {
       isBackPressure.set(false);
-      onLowPressureDispatcher.dispatch();
+      onAvailableDispatcher.dispatch();
     }
   }
 
   private synchronized void handleHighPressure() {
     if (!isBackPressure.get() && queue.size() > highWaterMark) {
       isBackPressure.set(true);
-      onHighPressureDispatcher.dispatch();
+      onUnavailableDispatcher.dispatch();
     }
   }
 
@@ -111,8 +111,8 @@ public class Pipe {
       .add("highWaterMark", highWaterMark)
       .add("isBackPressure", isBackPressure)
       .add("onEventDispatcher", onEventDispatcher)
-      .add("onLowPressureDispatcher", onLowPressureDispatcher)
-      .add("onHighPressureDispatcher", onHighPressureDispatcher)
+      .add("onAvailableDispatcher", onAvailableDispatcher)
+      .add("onUnavailableDispatcher", onUnavailableDispatcher)
       .toString();
   }
 }

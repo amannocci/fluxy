@@ -30,7 +30,7 @@ public class TcpSource extends Source {
       conn.handler(data -> {
         out.pushOne(new Event());
         if (out.isUnavailable()) {
-          onHighPressure(null);
+          onPipeUnavailable(null);
         }
       });
       conn.endHandler(e -> connections.remove(conn.writeHandlerID()));
@@ -42,16 +42,16 @@ public class TcpSource extends Source {
   }
 
   @Override
-  protected void onLowPressure(Void evt) {
-    super.onLowPressure(evt);
+  protected void onPipeAvailable(Void evt) {
+    super.onPipeAvailable(evt);
     for (NetSocket conn : connections.values()) {
       conn.resume();
     }
   }
 
   @Override
-  protected void onHighPressure(Void evt) {
-    super.onHighPressure(evt);
+  protected void onPipeUnavailable(Void evt) {
+    super.onPipeUnavailable(evt);
     for (NetSocket conn : connections.values()) {
       conn.pause();
     }

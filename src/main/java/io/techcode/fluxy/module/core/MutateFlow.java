@@ -1,6 +1,5 @@
 package io.techcode.fluxy.module.core;
 
-import com.google.common.base.MoreObjects;
 import io.techcode.fluxy.component.Flow;
 import io.techcode.fluxy.component.Pipe;
 import io.techcode.fluxy.event.Event;
@@ -18,8 +17,8 @@ public class MutateFlow extends Flow implements Handler<Void>, Consumer<Event> {
     out.pushOne(evt.copy());
   }
 
-  @Override protected void onLowPressure(Void evt) {
-    super.onLowPressure(evt);
+  @Override protected void onPipeAvailable(Void evt) {
+    super.onPipeAvailable(evt);
     in.pullMany(this, out.remainingCapacity());
   }
 

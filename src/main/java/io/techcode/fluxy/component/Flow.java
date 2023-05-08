@@ -3,6 +3,7 @@ package io.techcode.fluxy.component;
 import com.google.common.base.MoreObjects;
 import io.techcode.fluxy.event.Event;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import org.jctools.queues.MessagePassingQueue.Consumer;
 
@@ -11,8 +12,8 @@ public abstract class Flow extends AbstractVerticle implements Component, Handle
   protected final Pipe in;
   protected final Pipe out;
   protected Mailbox eventMailbox;
-  protected Mailbox lowPressureMailbox;
-  protected Mailbox highPressureMailbox;
+  protected Mailbox pipeAvailableMailbox;
+  protected Mailbox pipeUnavailableMailbox;
 
   public Flow(Pipe in, Pipe out) {
     this.in = in;
@@ -20,20 +21,21 @@ public abstract class Flow extends AbstractVerticle implements Component, Handle
   }
 
   @Override public void start() {
-    lowPressureMailbox = new Mailbox(vertx.getOrCreateContext(), this::onLowPressure);
-    highPressureMailbox = new Mailbox(vertx.getOrCreateContext(), this::onHighPressure);
-    eventMailbox = new Mailbox(vertx.getOrCreateContext(), this);
+    Context ctx = vertx.getOrCreateContext();
+    eventMailbox = new Mailbox(ctx, this);
+    pipeAvailableMailbox = new Mailbox(ctx, this::onPipeAvailable);
+    pipeUnavailableMailbox = new Mailbox(ctx, this::onPipeUnavailable);
     in.setEventHandler(eventMailbox);
-    out.setLowPressureHandler(lowPressureMailbox);
-    out.setHighPressureHandler(highPressureMailbox);
+    out.setAvailableHandler(pipeAvailableMailbox);
+    out.setUnavailableHandler(pipeUnavailableMailbox);
   }
 
-  protected void onLowPressure(Void evt) {
-    lowPressureMailbox.reset();
+  protected void onPipeAvailable(Void evt) {
+    pipeAvailableMailbox.reset();
   }
 
-  protected void onHighPressure(Void evt) {
-    highPressureMailbox.reset();
+  protected void onPipeUnavailable(Void evt) {
+    pipeUnavailableMailbox.reset();
   }
 
   @Override public void handle(Void evt) {

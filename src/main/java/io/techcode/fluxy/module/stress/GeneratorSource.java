@@ -1,6 +1,5 @@
 package io.techcode.fluxy.module.stress;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterators;
 import io.techcode.fluxy.component.Pipe;
 import io.techcode.fluxy.component.Source;
@@ -32,8 +31,8 @@ public class GeneratorSource extends Source {
   }
 
   @Override
-  protected void onLowPressure(Void evt) {
-    super.onLowPressure(evt);
+  protected void onPipeAvailable(Void evt) {
+    super.onPipeAvailable(evt);
     generateEvents();
   }
 
