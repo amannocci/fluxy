@@ -1,23 +1,25 @@
 package io.techcode.fluxy.pipeline;
 
-import com.google.common.collect.Iterators;
-import com.google.common.graph.Graph;
+import com.google.common.collect.Lists;
 import com.google.common.graph.GraphBuilder;
+import com.google.common.graph.MutableGraph;
 import com.typesafe.config.Config;
 import io.techcode.fluxy.component.*;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Promise;
+import io.vertx.core.Verticle;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Pipeline extends AbstractVerticle {
 
   private final Config conf;
-  private final Map<String, Source> sources;
-  private final Map<String, Flow> flows;
-  private final Map<String, Sink> sinks;
+  private final Map<String, SourceComponent> sources;
+  private final Map<String, FlowComponent> flows;
+  private final Map<String, SinkComponent> sinks;
   private Set<String> uniqueIds;
 
   public Pipeline(Config conf) {
@@ -28,6 +30,9 @@ public class Pipeline extends AbstractVerticle {
     checkUniqueIds();
     var graphView = generateGraphView();
     generatePipeline(graphView);
+    System.out.println(sources);
+    System.out.println(flows);
+    System.out.println(sinks);
   }
 
   private void checkUniqueIds() {
@@ -36,6 +41,7 @@ public class Pipeline extends AbstractVerticle {
     checkComponentUniqueIds(uniqueIds, "flows", false);
     checkComponentUniqueIds(uniqueIds, "sinks", true);
     this.uniqueIds = uniqueIds;
+    System.out.println(uniqueIds);
   }
 
   private void checkComponentUniqueIds(Set<String> uniqueIds, String sectionName, boolean shouldExists) {
@@ -50,51 +56,23 @@ public class Pipeline extends AbstractVerticle {
     }
   }
 
-  private Graph<String> generateGraphView() {
+  private MutableGraph<String> generateGraphView() {
     // Attempt to build a graph
     var graphView = GraphBuilder.directed().allowsSelfLoops(false).<String>build();
 
     // Build initial graph
     var section = conf.getConfig("sources");
     for (var entry : section.root().entrySet()) {
-      graphView.addNode(entry.getKey());
-    }
-
-    if (conf.hasPath("flows")) {
-      section = conf.getConfig("flows");
-      for (var entry : section.root().entrySet()) {
-        var componentConf = section.getConfig(entry.getKey());
-        for (var input : componentConf.getStringList("inputs")) {
-          if (!uniqueIds.contains(input))
-            throw new IllegalArgumentException("Unknown `" + input + "` for `" + entry.getKey() + "`");
-          graphView.putEdge(input, entry.getKey());
-        }
-      }
-    }
-
-    section = conf.getConfig("sinks");
-    for (var entry : section.root().entrySet()) {
-      var componentConf = section.getConfig(entry.getKey());
-      for (var input : componentConf.getStringList("inputs")) {
-        if (!uniqueIds.contains(input))
-          throw new IllegalArgumentException("Unknown `" + input + "` for `" + entry.getKey() + "`");
-        graphView.putEdge(input, entry.getKey());
-      }
-    }
-    return graphView;
-  }
-
-  private void generatePipeline(Graph<String> graphView) {
-    // Build initial graph
-    var section = conf.getConfig("sources");
-    for (var entry : section.root().entrySet()) {
       var componentId = entry.getKey();
       var componentConf = section.getConfig(componentId);
+      graphView.addNode(componentId);
       sources.put(
         componentId,
-        ComponentRegistry.INSTANCE.createSource(
-          componentConf.getString("type"),
-          new ComponentConfig(Optional.empty(), Optional.of(new Pipe()), componentConf.getConfig("options"))
+        new SourceComponent(
+          ComponentRegistry.INSTANCE.createSource(
+            componentConf.getString("type"),
+            componentConf.getConfig("options")
+          )
         )
       );
     }
@@ -104,28 +82,17 @@ public class Pipeline extends AbstractVerticle {
       for (var entry : section.root().entrySet()) {
         var componentId = entry.getKey();
         var componentConf = section.getConfig(componentId);
-
-        // TODO: Support for more than one input
-        var inputs = graphView.predecessors(entry.getKey());
-        if (inputs.size() > 1) throw new IllegalStateException("A flow can only be connected to one input");
-
-        var input = Iterators.get(inputs.iterator(), 0);
-        if (sources.containsKey(input)) {
-          var source = sources.get(input);
+        for (var input : componentConf.getStringList("inputs")) {
+          if (!uniqueIds.contains(input))
+            throw new IllegalArgumentException("Unknown `" + input + "` for `" + entry.getKey() + "`");
+          graphView.putEdge(input, entry.getKey());
           flows.put(
             componentId,
-            ComponentRegistry.INSTANCE.createFlow(
-              componentConf.getString("type"),
-              new ComponentConfig(Optional.of(source.out), Optional.of(new Pipe()), componentConf.getConfig("options"))
-            )
-          );
-        } else {
-          var flow = flows.get(input);
-          flows.put(
-            componentId,
-            ComponentRegistry.INSTANCE.createFlow(
-              componentConf.getString("type"),
-              new ComponentConfig(Optional.of(flow.out), Optional.of(new Pipe()), componentConf.getConfig("options"))
+            new FlowComponent(
+              ComponentRegistry.INSTANCE.createFlow(
+                componentConf.getString("type"),
+                componentConf.getConfig("options")
+              )
             )
           );
         }
@@ -136,30 +103,121 @@ public class Pipeline extends AbstractVerticle {
     for (var entry : section.root().entrySet()) {
       var componentId = entry.getKey();
       var componentConf = section.getConfig(componentId);
-
-      // TODO: Support for more than one input
-      var inputs = graphView.predecessors(entry.getKey());
-      if (inputs.size() > 1) throw new IllegalStateException("A sink can only be connected to one input");
-
-      var input = Iterators.get(inputs.iterator(), 0);
-      if (sources.containsKey(input)) {
-        var source = sources.get(input);
+      for (var input : componentConf.getStringList("inputs")) {
+        if (!uniqueIds.contains(input))
+          throw new IllegalArgumentException("Unknown `" + input + "` for `" + entry.getKey() + "`");
+        graphView.putEdge(input, entry.getKey());
         sinks.put(
           componentId,
-          ComponentRegistry.INSTANCE.createSink(
-            componentConf.getString("type"),
-            new ComponentConfig(Optional.of(source.out), Optional.empty(), componentConf.getConfig("options"))
+          new SinkComponent(
+            ComponentRegistry.INSTANCE.createSink(
+              componentConf.getString("type"),
+              componentConf.getConfig("options")
+            )
           )
         );
-      } else {
-        var flow = flows.get(input);
-        sinks.put(
-          componentId,
-          ComponentRegistry.INSTANCE.createSink(
-            componentConf.getString("type"),
-            new ComponentConfig(Optional.of(flow.out), Optional.empty(), componentConf.getConfig("options"))
-          )
-        );
+      }
+    }
+    return graphView;
+  }
+
+  private void generateInitialSourcePipeline(MutableGraph<String> graphView) {
+    for (var entry : sources.entrySet()) {
+      var componentId = entry.getKey();
+      var component = entry.getValue();
+
+      var outputs = graphView.successors(componentId);
+      var numberOfOutputs = outputs.size();
+      if (numberOfOutputs == 0) {
+        throw new IllegalStateException("Invalid pipeline");
+      } else if (numberOfOutputs > 1) {
+        var broadcast = new Broadcast(numberOfOutputs);
+        component.fanOut = Optional.of(broadcast);
+        component.source.connectTo(broadcast.in());
+      }
+    }
+  }
+
+  private void generateInitialFlowPipeline(MutableGraph<String> graphView) {
+    for (var entry : flows.entrySet()) {
+      var componentId = entry.getKey();
+      var component = entry.getValue();
+
+      var inputs = graphView.predecessors(componentId);
+      var outputs = graphView.successors(componentId);
+      var numberOfInputs = inputs.size();
+      var numberOfOutputs = outputs.size();
+
+      if (numberOfInputs == 0 || numberOfOutputs == 0) {
+        throw new IllegalStateException("Invalid pipeline");
+      }
+      if (numberOfInputs > 1) {
+        var merge = new Merge(numberOfInputs);
+        component.fanIn = Optional.of(merge);
+        merge.connectTo(component.flow.in());
+      }
+      if (numberOfOutputs > 1) {
+        var broadcast = new Broadcast(numberOfOutputs);
+        component.fanOut = Optional.of(broadcast);
+        component.flow.connectTo(broadcast.in());
+      }
+    }
+  }
+
+  private void generateInitialSinkPipeline(MutableGraph<String> graphView) {
+    for (var entry : sinks.entrySet()) {
+      var componentId = entry.getKey();
+      var component = entry.getValue();
+
+      var inputs = graphView.predecessors(componentId);
+      var numberOfInputs = inputs.size();
+
+      if (numberOfInputs == 0) {
+        throw new IllegalStateException("Invalid pipeline");
+      } else if (numberOfInputs > 1) {
+        var merge = new Merge(numberOfInputs);
+        component.fanIn = Optional.of(merge);
+        merge.connectTo(component.sink.in());
+      }
+    }
+  }
+
+  private void generatePipeline(MutableGraph<String> graphView) {
+    // Build initial pipeline components
+    generateInitialSourcePipeline(graphView);
+    generateInitialFlowPipeline(graphView);
+    generateInitialSinkPipeline(graphView);
+
+    // Connect components
+    for (var entry : sources.entrySet()) {
+      var componentId = entry.getKey();
+      var component = entry.getValue();
+
+      var outputs = graphView.successors(componentId);
+      for (var output : outputs) {
+        if (flows.containsKey(output)) {
+          var flow = flows.get(output);
+          component.connectTo(flow.in());
+        } else {
+          var sink = sinks.get(output);
+          component.connectTo(sink.in());
+        }
+      }
+    }
+
+    for (var entry : flows.entrySet()) {
+      var componentId = entry.getKey();
+      var component = entry.getValue();
+
+      var outputs = graphView.successors(componentId);
+      for (var output : outputs) {
+        if (flows.containsKey(output)) {
+          var flow = flows.get(output);
+          component.connectTo(flow.in());
+        } else {
+          var sink = sinks.get(output);
+          component.connectTo(sink.in());
+        }
       }
     }
   }
@@ -168,19 +226,97 @@ public class Pipeline extends AbstractVerticle {
   public void start(Promise<Void> startPromise) {
     CompositeFuture.join(sources.values()
         .stream()
-        .map(source -> vertx.deployVerticle(source))
+        .flatMap(SourceComponent::verticles)
+        .map(verticle -> vertx.deployVerticle(verticle))
         .collect(Collectors.toList())
       ).compose(e -> CompositeFuture.join(flows.values()
         .stream()
-        .map(flow -> vertx.deployVerticle(flow))
+        .flatMap(FlowComponent::verticles)
+        .map(verticle -> vertx.deployVerticle(verticle))
         .collect(Collectors.toList()))
       ).compose(e -> CompositeFuture.join(sinks.values()
         .stream()
-        .map(sink -> vertx.deployVerticle(sink))
+        .flatMap(SinkComponent::verticles)
+        .map(verticle -> vertx.deployVerticle(verticle))
         .collect(Collectors.toList()))
       )
       .onFailure(startPromise::fail)
       .onSuccess(e -> startPromise.complete());
+  }
+
+  private static class SourceComponent {
+    Source source;
+    Optional<Broadcast> fanOut;
+
+    public SourceComponent(Source source) {
+      this.source = source;
+      fanOut = Optional.empty();
+    }
+
+    public void connectTo(Pipe pipe) {
+      if (fanOut.isEmpty()) {
+        source.connectTo(pipe);
+      } else {
+        fanOut.get().connectTo(pipe);
+      }
+    }
+
+    public Stream<Verticle> verticles() {
+      var verticles = Lists.<Verticle>newArrayList(source);
+      fanOut.ifPresent(verticles::add);
+      return verticles.stream();
+    }
+  }
+
+  private static class FlowComponent {
+    Optional<Merge> fanIn;
+    Flow flow;
+    Optional<Broadcast> fanOut;
+
+    public FlowComponent(Flow flow) {
+      fanIn = Optional.empty();
+      this.flow = flow;
+      fanOut = Optional.empty();
+    }
+
+    public Pipe in() {
+      return fanIn.map(Merge::in).orElse(flow.in());
+    }
+
+    public void connectTo(Pipe pipe) {
+      if (fanOut.isEmpty()) {
+        flow.connectTo(pipe);
+      } else {
+        fanOut.get().connectTo(pipe);
+      }
+    }
+
+    public Stream<Verticle> verticles() {
+      var verticles = Lists.<Verticle>newArrayList(flow);
+      fanIn.ifPresent(verticles::add);
+      fanOut.ifPresent(verticles::add);
+      return verticles.stream();
+    }
+  }
+
+  private static class SinkComponent {
+    Optional<Merge> fanIn;
+    Sink sink;
+
+    public SinkComponent(Sink sink) {
+      fanIn = Optional.empty();
+      this.sink = sink;
+    }
+
+    public Pipe in() {
+      return fanIn.map(Merge::in).orElse(sink.in());
+    }
+
+    public Stream<Verticle> verticles() {
+      var verticles = Lists.<Verticle>newArrayList(sink);
+      fanIn.ifPresent(verticles::add);
+      return verticles.stream();
+    }
   }
 
 }

@@ -1,23 +1,20 @@
 package io.techcode.fluxy.module.stress;
 
 import com.google.common.collect.Iterators;
-import io.techcode.fluxy.component.ComponentConfig;
-import io.techcode.fluxy.component.Pipe;
+import com.typesafe.config.Config;
 import io.techcode.fluxy.component.Source;
 import io.techcode.fluxy.event.Event;
 import io.vertx.core.json.JsonObject;
 
 import java.util.Iterator;
-import java.util.List;
 
 public class GeneratorSource extends Source {
 
   private final Iterator<String> lines;
   private boolean isClosing = false;
 
-  public GeneratorSource(ComponentConfig conf) {
-    super(conf.out().orElseThrow());
-    this.lines = Iterators.cycle(conf.options().getStringList("lines"));
+  public GeneratorSource(Config options) {
+    this.lines = Iterators.cycle(options.getStringList("lines"));
   }
 
   @Override

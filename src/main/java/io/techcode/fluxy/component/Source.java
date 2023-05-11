@@ -1,20 +1,19 @@
 package io.techcode.fluxy.component;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
 
 public abstract class Source extends AbstractVerticle implements Component {
 
-  public final Pipe out;
   protected Mailbox pipeAvailableMailbox;
   protected Mailbox pipeUnavailableMailbox;
+  protected Pipe out;
 
-  public Source(Pipe out) {
-    this.out = out;
-  }
-
-  @Override public void start() {
+  @Override
+  public void start() {
+    Preconditions.checkNotNull(out, "Source isn't connected");
     Context ctx = vertx.getOrCreateContext();
     pipeAvailableMailbox = new Mailbox(ctx, this::onPipeAvailable);
     pipeUnavailableMailbox = new Mailbox(ctx, this::onPipeUnavailable);
@@ -30,7 +29,16 @@ public abstract class Source extends AbstractVerticle implements Component {
     pipeUnavailableMailbox.reset();
   }
 
-  @Override public String toString() {
+  public void connectTo(Pipe pipe) {
+    out = pipe;
+  }
+
+  public Pipe out() {
+    return out;
+  }
+
+  @Override
+  public String toString() {
     return MoreObjects.toStringHelper(this)
       .add("out", out)
       .toString();

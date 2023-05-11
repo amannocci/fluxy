@@ -8,11 +8,11 @@ import org.jctools.queues.MessagePassingQueue.Consumer;
 
 public abstract class Sink extends AbstractVerticle implements Component, Handler<Void>, Consumer<Event> {
 
-  protected final Pipe in;
+  protected Pipe in;
   protected Mailbox eventMailbox;
 
-  public Sink(Pipe in) {
-    this.in = in;
+  public Sink() {
+    in = new Pipe();
   }
 
   @Override public void start() {
@@ -27,6 +27,10 @@ public abstract class Sink extends AbstractVerticle implements Component, Handle
 
   @Override public void accept(Event evt) {
     // Do nothing
+  }
+
+  public Pipe in() {
+    return in;
   }
 
   @Override public String toString() {

@@ -1,6 +1,6 @@
 package io.techcode.fluxy.module.std;
 
-import io.techcode.fluxy.component.ComponentConfig;
+import com.typesafe.config.Config;
 import io.techcode.fluxy.component.Sink;
 import io.techcode.fluxy.event.Event;
 import io.vertx.core.Handler;
@@ -8,8 +8,7 @@ import org.jctools.queues.MessagePassingQueue.Consumer;
 
 public class StdoutSink extends Sink implements Handler<Void>, Consumer<Event> {
 
-  public StdoutSink(ComponentConfig conf) {
-    super(conf.in().orElseThrow());
+  public StdoutSink(Config options) {
   }
 
   @Override

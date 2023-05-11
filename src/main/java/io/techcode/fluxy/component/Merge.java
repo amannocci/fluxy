@@ -8,7 +8,7 @@ import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import org.jctools.queues.MessagePassingQueue.Consumer;
 
-public abstract class Flow extends AbstractVerticle implements Component, Handler<Void>, Consumer<Event> {
+public class Merge extends AbstractVerticle implements Component, Handler<Void>, Consumer<Event> {
 
   protected Pipe in;
   protected Pipe out;
@@ -16,13 +16,14 @@ public abstract class Flow extends AbstractVerticle implements Component, Handle
   protected Mailbox pipeAvailableMailbox;
   protected Mailbox pipeUnavailableMailbox;
 
-  public Flow() {
-    in = new Pipe();
+  public Merge(int numberOfInputs) {
+    in = new Pipe(Pipe.DEFAULT_CAPACITY * numberOfInputs, true);
   }
 
-  @Override public void start() {
-    Preconditions.checkNotNull(in, "Flow isn't connected");
-    Preconditions.checkNotNull(out, "Flow isn't connected");
+  @Override
+  public void start() {
+    Preconditions.checkNotNull(in, "Merge isn't connected");
+    Preconditions.checkNotNull(out, "Merge isn't connected");
     Context ctx = vertx.getOrCreateContext();
     eventMailbox = new Mailbox(ctx, this);
     pipeAvailableMailbox = new Mailbox(ctx, this::onPipeAvailable);
@@ -32,35 +33,40 @@ public abstract class Flow extends AbstractVerticle implements Component, Handle
     out.setUnavailableHandler(pipeUnavailableMailbox);
   }
 
+  public Pipe in() {
+    return this.in;
+  }
+
+  public Pipe out() {
+    return this.out;
+  }
+
   public void connectTo(Pipe pipe) {
     out = pipe;
   }
 
-  public Pipe in() {
-    return in;
-  }
-
-  public Pipe out() {
-    return out;
-  }
-
   protected void onPipeAvailable(Void evt) {
     pipeAvailableMailbox.reset();
+    in.pullMany(this, out.remainingCapacity());
   }
 
   protected void onPipeUnavailable(Void evt) {
     pipeUnavailableMailbox.reset();
   }
 
-  @Override public void handle(Void evt) {
+  @Override
+  public void handle(Void evt) {
     eventMailbox.reset();
+    in.pullMany(this, out.remainingCapacity());
   }
 
-  @Override public void accept(Event evt) {
-    // Do nothing
+  @Override
+  public void accept(Event evt) {
+    out.pushOne(evt);
   }
 
-  @Override public String toString() {
+  @Override
+  public String toString() {
     return MoreObjects.toStringHelper(this)
       .add("in", in)
       .add("out", out)

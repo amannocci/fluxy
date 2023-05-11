@@ -3,6 +3,7 @@ package io.techcode.fluxy.component;
 import com.google.common.base.MoreObjects;
 import io.techcode.fluxy.event.Event;
 import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MpscUnboundedArrayQueue;
 import org.jctools.queues.SpscUnboundedArrayQueue;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -10,9 +11,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Pipe {
 
+  public static final int DEFAULT_CAPACITY = 128;
   private static final AtomicInteger idTracker = new AtomicInteger(0);
   public final int id;
-  private final SpscUnboundedArrayQueue<Event> queue;
+  private final MessagePassingQueue<Event> queue;
   private final int lowWaterMark;
   private final int highWaterMark;
   private final AtomicBoolean isBackPressure;
@@ -21,12 +23,20 @@ public class Pipe {
   private volatile Mailbox onUnavailableDispatcher;
 
   public Pipe() {
-    this(256);
+    this(DEFAULT_CAPACITY);
   }
 
   public Pipe(int capacity) {
+    this(capacity, false);
+  }
+
+  public Pipe(int capacity, boolean multiProducer) {
     id = idTracker.incrementAndGet();
-    queue = new SpscUnboundedArrayQueue<>(capacity);
+    if (multiProducer) {
+      queue = new MpscUnboundedArrayQueue<>(capacity);
+    } else {
+      queue = new SpscUnboundedArrayQueue<>(capacity);
+    }
     lowWaterMark = (int) (capacity * 0.10F);
     highWaterMark = (int) (capacity * 0.90F);
     isBackPressure = new AtomicBoolean(true);
@@ -81,6 +91,7 @@ public class Pipe {
    * @return remaining pipe capacity.
    */
   public int remainingCapacity() {
+    if (isBackPressure.get()) return 0;
     return Math.max(0, highWaterMark - queue.size());
   }
 

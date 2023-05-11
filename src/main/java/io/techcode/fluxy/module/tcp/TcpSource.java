@@ -1,6 +1,6 @@
 package io.techcode.fluxy.module.tcp;
 
-import io.techcode.fluxy.component.ComponentConfig;
+import com.typesafe.config.Config;
 import io.techcode.fluxy.component.Source;
 import io.techcode.fluxy.event.Event;
 import io.vertx.core.net.NetServer;
@@ -14,8 +14,7 @@ public class TcpSource extends Source {
   private final Map<String, NetSocket> connections;
   private NetServer server;
 
-  public TcpSource(ComponentConfig conf) {
-    super(conf.out().orElseThrow());
+  public TcpSource(Config options) {
     connections = new HashMap<>();
   }
 
@@ -45,7 +44,7 @@ public class TcpSource extends Source {
   @Override
   protected void onPipeAvailable(Void evt) {
     super.onPipeAvailable(evt);
-    for (NetSocket conn : connections.values()) {
+    for (var conn : connections.values()) {
       conn.resume();
     }
   }
@@ -53,7 +52,7 @@ public class TcpSource extends Source {
   @Override
   protected void onPipeUnavailable(Void evt) {
     super.onPipeUnavailable(evt);
-    for (NetSocket conn : connections.values()) {
+    for (var conn : connections.values()) {
       conn.pause();
     }
   }
