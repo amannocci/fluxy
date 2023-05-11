@@ -2,10 +2,9 @@ package io.techcode.fluxy.component;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
 
-public abstract class Source extends AbstractVerticle implements Component {
+public abstract class Source extends Component {
 
   protected Mailbox pipeAvailableMailbox;
   protected Mailbox pipeUnavailableMailbox;
@@ -17,8 +16,8 @@ public abstract class Source extends AbstractVerticle implements Component {
     Context ctx = vertx.getOrCreateContext();
     pipeAvailableMailbox = new Mailbox(ctx, this::onPipeAvailable);
     pipeUnavailableMailbox = new Mailbox(ctx, this::onPipeUnavailable);
-    out.setAvailableHandler(pipeAvailableMailbox);
-    out.setUnavailableHandler(pipeUnavailableMailbox);
+    out.addAvailableHandler(pipeAvailableMailbox);
+    out.addUnavailableHandler(pipeUnavailableMailbox);
   }
 
   protected void onPipeAvailable(Void event) {

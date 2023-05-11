@@ -4,14 +4,13 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.techcode.fluxy.event.Event;
-import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import org.jctools.queues.MessagePassingQueue.Consumer;
 
 import java.util.List;
 
-public class Broadcast extends AbstractVerticle implements Component, Handler<Void>, Consumer<Event> {
+public class Broadcast extends Component implements Handler<Void>, Consumer<Event> {
 
   private final Pipe in;
   private final List<Pipe> outs;
@@ -32,10 +31,10 @@ public class Broadcast extends AbstractVerticle implements Component, Handler<Vo
     eventMailbox = new Mailbox(ctx, this);
     pipeAvailableMailbox = new Mailbox(ctx, this::onPipeAvailable);
     pipeUnavailableMailbox = new Mailbox(ctx, this::onPipeUnavailable);
-    in.setEventHandler(eventMailbox);
+    in.addEventHandler(eventMailbox);
     for (var out : outs) {
-      out.setAvailableHandler(pipeAvailableMailbox);
-      out.setUnavailableHandler(pipeUnavailableMailbox);
+      out.addAvailableHandler(pipeAvailableMailbox);
+      out.addUnavailableHandler(pipeUnavailableMailbox);
     }
   }
 

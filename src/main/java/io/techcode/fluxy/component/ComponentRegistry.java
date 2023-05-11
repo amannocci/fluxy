@@ -9,7 +9,6 @@ import io.techcode.fluxy.module.stress.GeneratorSource;
 import io.techcode.fluxy.module.tcp.TcpSource;
 
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class ComponentRegistry {
 

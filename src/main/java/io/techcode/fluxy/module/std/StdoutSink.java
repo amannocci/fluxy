@@ -20,6 +20,11 @@ public class StdoutSink extends Sink implements Handler<Void>, Consumer<Event> {
   public void handle(Void evt) {
     super.handle(evt);
     in.pullMany(this);
+
+    // Handle shutdown
+    if (isStopping() && in.isEmpty()) {
+      shutdown();
+    }
   }
 
   @Override

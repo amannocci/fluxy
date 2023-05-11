@@ -1,11 +1,13 @@
 package io.techcode.fluxy.component;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.Lists;
 import io.techcode.fluxy.event.Event;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 import org.jctools.queues.SpscUnboundedArrayQueue;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -18,9 +20,9 @@ public class Pipe {
   private final int lowWaterMark;
   private final int highWaterMark;
   private final AtomicBoolean isBackPressure;
-  private volatile Mailbox onEventDispatcher;
-  private volatile Mailbox onAvailableDispatcher;
-  private volatile Mailbox onUnavailableDispatcher;
+  private final List<Mailbox> onEventDispatchers;
+  private final List<Mailbox> onAvailableDispatchers;
+  private final List<Mailbox> onUnavailableDispatchers;
 
   public Pipe() {
     this(DEFAULT_CAPACITY);
@@ -40,18 +42,21 @@ public class Pipe {
     lowWaterMark = (int) (capacity * 0.10F);
     highWaterMark = (int) (capacity * 0.90F);
     isBackPressure = new AtomicBoolean(true);
+    onEventDispatchers = Lists.newCopyOnWriteArrayList();
+    onAvailableDispatchers = Lists.newCopyOnWriteArrayList();
+    onUnavailableDispatchers = Lists.newCopyOnWriteArrayList();
   }
 
-  public void setEventHandler(Mailbox mailbox) {
-    onEventDispatcher = mailbox;
+  public void addEventHandler(Mailbox mailbox) {
+    onEventDispatchers.add(mailbox);
   }
 
-  public void setAvailableHandler(Mailbox mailbox) {
-    onAvailableDispatcher = mailbox;
+  public void addAvailableHandler(Mailbox mailbox) {
+    onAvailableDispatchers.add(mailbox);
   }
 
-  public void setUnavailableHandler(Mailbox mailbox) {
-    onUnavailableDispatcher = mailbox;
+  public void addUnavailableHandler(Mailbox mailbox) {
+    onUnavailableDispatchers.add(mailbox);
   }
 
   public void pushOne(Event evt) {
@@ -95,21 +100,29 @@ public class Pipe {
     return Math.max(0, highWaterMark - queue.size());
   }
 
+  public boolean isEmpty() {
+    return queue.isEmpty();
+  }
+
+  public boolean nonEmpty() {
+    return !isEmpty();
+  }
+
   private void handleEvent() {
-    onEventDispatcher.dispatch();
+    onEventDispatchers.forEach(Mailbox::dispatch);
   }
 
   private synchronized void handleLowPressure() {
     if (isBackPressure.get() && queue.size() < lowWaterMark) {
       isBackPressure.set(false);
-      onAvailableDispatcher.dispatch();
+      onAvailableDispatchers.forEach(Mailbox::dispatch);
     }
   }
 
   private synchronized void handleHighPressure() {
     if (!isBackPressure.get() && queue.size() > highWaterMark) {
       isBackPressure.set(true);
-      onUnavailableDispatcher.dispatch();
+      onUnavailableDispatchers.forEach(Mailbox::dispatch);
     }
   }
 
@@ -121,9 +134,9 @@ public class Pipe {
       .add("lowWaterMark", lowWaterMark)
       .add("highWaterMark", highWaterMark)
       .add("isBackPressure", isBackPressure)
-      .add("onEventDispatcher", onEventDispatcher)
-      .add("onAvailableDispatcher", onAvailableDispatcher)
-      .add("onUnavailableDispatcher", onUnavailableDispatcher)
+      .add("onEventDispatchers", onEventDispatchers)
+      .add("onAvailableDispatchers", onAvailableDispatchers)
+      .add("onUnavailableDispatchers", onUnavailableDispatchers)
       .toString();
   }
 }

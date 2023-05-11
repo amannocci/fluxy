@@ -11,16 +11,9 @@ import java.util.Iterator;
 public class GeneratorSource extends Source {
 
   private final Iterator<String> lines;
-  private boolean isClosing = false;
 
   public GeneratorSource(Config options) {
     this.lines = Iterators.cycle(options.getStringList("lines"));
-  }
-
-  @Override
-  public void stop() throws Exception {
-    super.stop();
-    this.isClosing = false;
   }
 
   @Override
@@ -35,7 +28,12 @@ public class GeneratorSource extends Source {
   }
 
   private void generateEvents() {
-    if (isClosing) return;
+    // Handle shutdown
+    if (isStopping()) {
+      shutdown();
+      return;
+    }
+
     vertx.runOnContext(a -> {
       int remainingCapacity = out.remainingCapacity();
       for (int i = 0; i < remainingCapacity; i++) {

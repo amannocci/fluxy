@@ -12,12 +12,6 @@ public class MutateFlow extends Flow implements Handler<Void>, Consumer<Event> {
   }
 
   @Override
-  public void accept(Event evt) {
-    evt.payload().put("mutate", "test");
-    out.pushOne(evt.copy());
-  }
-
-  @Override
   protected void onPipeAvailable(Void evt) {
     super.onPipeAvailable(evt);
     in.pullMany(this, out.remainingCapacity());
@@ -27,6 +21,17 @@ public class MutateFlow extends Flow implements Handler<Void>, Consumer<Event> {
   public void handle(Void evt) {
     super.handle(evt);
     in.pullMany(this, out.remainingCapacity());
+
+    // Handle shutdown
+    if (isStopping() && in.isEmpty()) {
+      shutdown();
+    }
+  }
+
+  @Override
+  public void accept(Event evt) {
+    evt.payload().put("mutate", "test");
+    out.pushOne(evt.copy());
   }
 
 }

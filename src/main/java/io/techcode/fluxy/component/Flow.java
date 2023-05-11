@@ -6,9 +6,10 @@ import io.techcode.fluxy.event.Event;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import org.jctools.queues.MessagePassingQueue.Consumer;
 
-public abstract class Flow extends AbstractVerticle implements Component, Handler<Void>, Consumer<Event> {
+public abstract class Flow extends Component implements Handler<Void>, Consumer<Event> {
 
   protected Pipe in;
   protected Pipe out;
@@ -20,16 +21,17 @@ public abstract class Flow extends AbstractVerticle implements Component, Handle
     in = new Pipe();
   }
 
-  @Override public void start() {
+  @Override
+  public void start() {
     Preconditions.checkNotNull(in, "Flow isn't connected");
     Preconditions.checkNotNull(out, "Flow isn't connected");
     Context ctx = vertx.getOrCreateContext();
     eventMailbox = new Mailbox(ctx, this);
     pipeAvailableMailbox = new Mailbox(ctx, this::onPipeAvailable);
     pipeUnavailableMailbox = new Mailbox(ctx, this::onPipeUnavailable);
-    in.setEventHandler(eventMailbox);
-    out.setAvailableHandler(pipeAvailableMailbox);
-    out.setUnavailableHandler(pipeUnavailableMailbox);
+    in.addEventHandler(eventMailbox);
+    out.addAvailableHandler(pipeAvailableMailbox);
+    out.addUnavailableHandler(pipeUnavailableMailbox);
   }
 
   public void connectTo(Pipe pipe) {
@@ -52,15 +54,18 @@ public abstract class Flow extends AbstractVerticle implements Component, Handle
     pipeUnavailableMailbox.reset();
   }
 
-  @Override public void handle(Void evt) {
+  @Override
+  public void handle(Void evt) {
     eventMailbox.reset();
   }
 
-  @Override public void accept(Event evt) {
+  @Override
+  public void accept(Event evt) {
     // Do nothing
   }
 
-  @Override public String toString() {
+  @Override
+  public String toString() {
     return MoreObjects.toStringHelper(this)
       .add("in", in)
       .add("out", out)
