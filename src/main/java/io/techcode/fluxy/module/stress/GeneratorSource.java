@@ -24,10 +24,10 @@ public class GeneratorSource extends Source {
   @Override
   protected void onPipeAvailable(Void evt) {
     super.onPipeAvailable(evt);
-    generateEvents();
+    onPush();
   }
 
-  private void generateEvents() {
+  protected void onPush() {
     // Handle shutdown
     if (isStopping()) {
       shutdown();
@@ -39,7 +39,7 @@ public class GeneratorSource extends Source {
       for (int i = 0; i < remainingCapacity; i++) {
         out.pushOne(new Event(new JsonObject().put("message", lines.next())));
       }
-      generateEvents();
+      onPush();
     });
   }
 

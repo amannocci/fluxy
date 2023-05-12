@@ -5,9 +5,8 @@ import com.google.common.base.Preconditions;
 import io.techcode.fluxy.event.Event;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
-import org.jctools.queues.MessagePassingQueue.Consumer;
 
-public class Merge extends Component implements Handler<Void>, Consumer<Event> {
+public class Merge extends Component implements Handler<Void> {
 
   protected Pipe in;
   protected Pipe out;
@@ -34,7 +33,7 @@ public class Merge extends Component implements Handler<Void>, Consumer<Event> {
 
   protected void onPipeAvailable(Void evt) {
     pipeAvailableMailbox.reset();
-    in.pullMany(this, out.remainingCapacity());
+    onPull();
   }
 
   protected void onPipeUnavailable(Void evt) {
@@ -44,22 +43,22 @@ public class Merge extends Component implements Handler<Void>, Consumer<Event> {
   @Override
   public void handle(Void evt) {
     eventMailbox.reset();
-    in.pullMany(this, out.remainingCapacity());
+    onPull();
 
     // Handle the case where the mailbox is notified by more than one thread.
     // In that case, we can miss the event and wait indefinitely.
     // To avoid this issue, we trigger another dispatch.
     if (in.nonEmpty()) {
       eventMailbox.dispatch();
-    } else {
-      // Handle shutdown
-      if (isStopping()) shutdown();
     }
   }
 
+  public void onPull() {
+    in.pullMany(this::onPush, out.remainingCapacity());
+  }
+
   // onPush
-  @Override
-  public void accept(Event evt) {
+  public void onPush(Event evt) {
     out.pushOne(evt);
   }
 

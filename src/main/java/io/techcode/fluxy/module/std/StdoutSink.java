@@ -3,10 +3,8 @@ package io.techcode.fluxy.module.std;
 import com.typesafe.config.Config;
 import io.techcode.fluxy.component.Sink;
 import io.techcode.fluxy.event.Event;
-import io.vertx.core.Handler;
-import org.jctools.queues.MessagePassingQueue.Consumer;
 
-public class StdoutSink extends Sink implements Handler<Void>, Consumer<Event> {
+public class StdoutSink extends Sink {
 
   public StdoutSink(Config options) {
   }
@@ -17,18 +15,12 @@ public class StdoutSink extends Sink implements Handler<Void>, Consumer<Event> {
   }
 
   @Override
-  public void handle(Void evt) {
-    super.handle(evt);
-    in.pullMany(this);
-
-    // Handle shutdown
-    if (isStopping() && in.isEmpty()) {
-      shutdown();
-    }
+  public void onPull() {
+    in.pullMany(this::onPush);
   }
 
   @Override
-  public void accept(Event evt) {
+  protected void onPush(Event evt) {
     System.out.println(evt.payload());
   }
 

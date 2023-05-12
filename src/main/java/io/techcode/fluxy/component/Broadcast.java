@@ -6,11 +6,10 @@ import com.google.common.collect.Lists;
 import io.techcode.fluxy.event.Event;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
-import org.jctools.queues.MessagePassingQueue.Consumer;
 
 import java.util.List;
 
-public class Broadcast extends Component implements Handler<Void>, Consumer<Event> {
+public class Broadcast extends Component implements Handler<Void> {
 
   protected final Pipe in;
   protected final List<Pipe> outs;
@@ -40,8 +39,7 @@ public class Broadcast extends Component implements Handler<Void>, Consumer<Even
 
   protected void onPipeAvailable(Void evt) {
     pipeAvailableMailbox.reset();
-    var maxEventsToPull = outs.stream().mapToInt(Pipe::remainingCapacity).min().orElse(0);
-    if (maxEventsToPull > 0) in.pullMany(this, maxEventsToPull);
+    onPull();
   }
 
   protected void onPipeUnavailable(Void evt) {
@@ -51,12 +49,15 @@ public class Broadcast extends Component implements Handler<Void>, Consumer<Even
   @Override
   public void handle(Void evt) {
     eventMailbox.reset();
-    var maxEventsToPull = outs.stream().mapToInt(Pipe::remainingCapacity).min().orElse(0);
-    if (maxEventsToPull > 0) in.pullMany(this, maxEventsToPull);
+    onPull();
   }
 
-  @Override
-  public void accept(Event evt) {
+  protected void onPull() {
+    var maxEventsToPull = outs.stream().mapToInt(Pipe::remainingCapacity).min().orElse(0);
+    if (maxEventsToPull > 0) in.pullMany(this::onPush, maxEventsToPull);
+  }
+
+  protected void onPush(Event evt) {
     for (var out : outs) {
       out.pushOne(evt.copy());
     }

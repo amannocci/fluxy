@@ -17,7 +17,7 @@ public abstract class Component extends AbstractVerticle {
   }
 
   public void shutdown() {
-    if (isStopping != null) isStopping.complete();
+    if (isStopping != null) isStopping.tryComplete();
   }
 
   public boolean isBlocking() {

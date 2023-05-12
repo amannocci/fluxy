@@ -5,9 +5,8 @@ import com.google.common.base.Preconditions;
 import io.techcode.fluxy.event.Event;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
-import org.jctools.queues.MessagePassingQueue.Consumer;
 
-public abstract class Flow extends Component implements Handler<Void>, Consumer<Event> {
+public abstract class Flow extends Component implements Handler<Void> {
 
   protected Pipe in;
   protected Pipe out;
@@ -34,6 +33,7 @@ public abstract class Flow extends Component implements Handler<Void>, Consumer<
 
   protected void onPipeAvailable(Void evt) {
     pipeAvailableMailbox.reset();
+    onPull();
   }
 
   protected void onPipeUnavailable(Void evt) {
@@ -43,10 +43,21 @@ public abstract class Flow extends Component implements Handler<Void>, Consumer<
   @Override
   public void handle(Void evt) {
     eventMailbox.reset();
+    onPull();
+
+    // Handle the case where the mailbox was notified.
+    // We can miss the event and wait indefinitely.
+    // To avoid this issue, we trigger another dispatch.
+    if (in.nonEmpty()) {
+      eventMailbox.dispatch();
+    }
   }
 
-  @Override
-  public void accept(Event evt) {
+  protected void onPull() {
+    // Do nothing
+  }
+
+  protected void onPush(Event evt) {
     // Do nothing
   }
 

@@ -3,9 +3,8 @@ package io.techcode.fluxy.component;
 import com.google.common.base.MoreObjects;
 import io.techcode.fluxy.event.Event;
 import io.vertx.core.Handler;
-import org.jctools.queues.MessagePassingQueue.Consumer;
 
-public abstract class Sink extends Component implements Handler<Void>, Consumer<Event> {
+public abstract class Sink extends Component implements Handler<Void> {
 
   protected Pipe in;
   protected Mailbox eventMailbox;
@@ -18,16 +17,20 @@ public abstract class Sink extends Component implements Handler<Void>, Consumer<
   public void start() {
     eventMailbox = new Mailbox(vertx.getOrCreateContext(), this);
     in.addEventHandler(eventMailbox);
-    in.pullOne(this);
+    in.pullOne(this::onPush);
   }
 
   @Override
   public void handle(Void event) {
     eventMailbox.reset();
+    onPull();
   }
 
-  @Override
-  public void accept(Event evt) {
+  protected void onPull() {
+    // Do nothing
+  }
+
+  protected void onPush(Event evt) {
     // Do nothing
   }
 
