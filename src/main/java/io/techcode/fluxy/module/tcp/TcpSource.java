@@ -3,6 +3,7 @@ package io.techcode.fluxy.module.tcp;
 import com.typesafe.config.Config;
 import io.techcode.fluxy.component.Source;
 import io.techcode.fluxy.event.Event;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetServer;
 import io.vertx.core.net.NetSocket;
 
@@ -14,6 +15,8 @@ public class TcpSource extends Source {
   private final Map<String, NetSocket> connections;
   private NetServer server;
 
+  private boolean isPaused = false;
+
   public TcpSource(Config options) {
     connections = new HashMap<>();
   }
@@ -22,21 +25,7 @@ public class TcpSource extends Source {
   public void start() {
     super.start();
     server = vertx.createNetServer();
-
-    server.connectHandler(conn -> {
-      conn.pause();
-      connections.put(conn.writeHandlerID(), conn);
-      conn.handler(data -> {
-        out.pushOne(new Event());
-        if (out.isUnavailable()) {
-          onPipeUnavailable(null);
-        }
-      });
-      conn.endHandler(e -> connections.remove(conn.writeHandlerID()));
-      if (out.isAvailable()) {
-        conn.resume();
-      }
-    });
+    server.connectHandler(this::onConnectionOpen);
     server.listen(8080, "0.0.0.0");
     System.out.println("Listening on: 8080");
   }
@@ -50,16 +39,43 @@ public class TcpSource extends Source {
   @Override
   protected void onPipeAvailable(Void evt) {
     super.onPipeAvailable(evt);
-    for (var conn : connections.values()) {
-      conn.resume();
+    if (isPaused) {
+      for (var conn : connections.values()) {
+        conn.resume();
+      }
+      isPaused = false;
     }
   }
 
   @Override
   protected void onPipeUnavailable(Void evt) {
     super.onPipeUnavailable(evt);
-    for (var conn : connections.values()) {
-      conn.pause();
+    if (!isPaused) {
+      for (var conn : connections.values()) {
+        conn.pause();
+      }
+      isPaused = true;
+    }
+  }
+
+  protected void onConnectionOpen(NetSocket conn) {
+    conn.pause();
+    connections.put(conn.writeHandlerID(), conn);
+    conn.handler(this::onPush);
+    conn.endHandler(e -> onConnectionEnd(conn));
+    if (out.isAvailable()) {
+      conn.resume();
+    }
+  }
+
+  protected void onConnectionEnd(NetSocket conn) {
+    connections.remove(conn.writeHandlerID());
+  }
+
+  protected void onPush(Buffer event) {
+    out.pushOne(new Event());
+    if (out.isUnavailable()) {
+      onPipeUnavailable(null);
     }
   }
 
