@@ -31,10 +31,6 @@ public abstract class Sink extends Component implements Handler<Void>, Consumer<
     // Do nothing
   }
 
-  public Pipe in() {
-    return in;
-  }
-
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)

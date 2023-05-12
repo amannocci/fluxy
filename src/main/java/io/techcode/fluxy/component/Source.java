@@ -28,14 +28,6 @@ public abstract class Source extends Component {
     pipeUnavailableMailbox.reset();
   }
 
-  public void connectTo(Pipe pipe) {
-    out = pipe;
-  }
-
-  public Pipe out() {
-    return out;
-  }
-
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)

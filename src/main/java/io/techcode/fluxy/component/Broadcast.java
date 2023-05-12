@@ -12,8 +12,8 @@ import java.util.List;
 
 public class Broadcast extends Component implements Handler<Void>, Consumer<Event> {
 
-  private final Pipe in;
-  private final List<Pipe> outs;
+  protected final Pipe in;
+  protected final List<Pipe> outs;
   protected Mailbox eventMailbox;
   protected Mailbox pipeAvailableMailbox;
   protected Mailbox pipeUnavailableMailbox;
@@ -36,14 +36,6 @@ public class Broadcast extends Component implements Handler<Void>, Consumer<Even
       out.addAvailableHandler(pipeAvailableMailbox);
       out.addUnavailableHandler(pipeUnavailableMailbox);
     }
-  }
-
-  public Pipe in() {
-    return in;
-  }
-
-  public void connectTo(Pipe pipe) {
-    outs.add(pipe);
   }
 
   protected void onPipeAvailable(Void evt) {

@@ -15,8 +15,8 @@ public class Merge extends Component implements Handler<Void>, Consumer<Event> {
   protected Mailbox pipeAvailableMailbox;
   protected Mailbox pipeUnavailableMailbox;
 
-  public Merge(int numberOfInputs) {
-    in = new Pipe(Pipe.DEFAULT_CAPACITY * numberOfInputs, true);
+  public Merge() {
+    in = new Pipe(Pipe.DEFAULT_CAPACITY * 2, true);
   }
 
   @Override
@@ -30,18 +30,6 @@ public class Merge extends Component implements Handler<Void>, Consumer<Event> {
     in.addEventHandler(eventMailbox);
     out.addAvailableHandler(pipeAvailableMailbox);
     out.addUnavailableHandler(pipeUnavailableMailbox);
-  }
-
-  public Pipe in() {
-    return this.in;
-  }
-
-  public Pipe out() {
-    return this.out;
-  }
-
-  public void connectTo(Pipe pipe) {
-    out = pipe;
   }
 
   protected void onPipeAvailable(Void evt) {

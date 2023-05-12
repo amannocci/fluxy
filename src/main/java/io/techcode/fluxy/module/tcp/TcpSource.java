@@ -42,6 +42,12 @@ public class TcpSource extends Source {
   }
 
   @Override
+  public void stop() {
+    connections.clear();
+    server.close();
+  }
+
+  @Override
   protected void onPipeAvailable(Void evt) {
     super.onPipeAvailable(evt);
     for (var conn : connections.values()) {
@@ -55,12 +61,6 @@ public class TcpSource extends Source {
     for (var conn : connections.values()) {
       conn.pause();
     }
-  }
-
-  @Override
-  public void stop() {
-    connections.clear();
-    server.close();
   }
 
 }
