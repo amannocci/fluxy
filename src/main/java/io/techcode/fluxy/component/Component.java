@@ -1,23 +1,28 @@
 package io.techcode.fluxy.component;
 
+import io.techcode.fluxy.pipeline.Pipeline;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 
 public abstract class Component extends AbstractVerticle {
 
-  private Promise<Void> isStopping;
+  protected final Pipeline pipeline;
+  protected int retry;
+
+  public Component(Pipeline pipeline) {
+    this.pipeline = pipeline;
+  }
 
   @Override
-  public void stop(Promise<Void> isStopping) {
-    this.isStopping = isStopping;
-  }
-
-  public boolean isStopping() {
-    return isStopping != null;
-  }
-
-  public void shutdown() {
-    if (isStopping != null) isStopping.tryComplete();
+  public void stop(Promise<Void> stopPromise) {
+    vertx.setPeriodic(250, evt -> {
+      if (pipeline.isFlushed()) {
+        stopPromise.complete();
+      }
+      if (retry++ > 120) {
+        stopPromise.fail("Failed to flush pipeline");
+      }
+    });
   }
 
   public boolean isBlocking() {

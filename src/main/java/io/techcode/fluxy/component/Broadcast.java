@@ -4,6 +4,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.techcode.fluxy.event.Event;
+import io.techcode.fluxy.pipeline.Pipeline;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
 
@@ -17,7 +18,8 @@ public class Broadcast extends Component implements Handler<Void> {
   protected Mailbox pipeAvailableMailbox;
   protected Mailbox pipeUnavailableMailbox;
 
-  public Broadcast(int numberOfOutputs) {
+  public Broadcast(Pipeline pipeline, int numberOfOutputs) {
+    super(pipeline);
     in = new Pipe();
     outs = Lists.newArrayListWithExpectedSize(numberOfOutputs);
   }

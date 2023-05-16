@@ -14,17 +14,14 @@ repositories {
   mavenCentral()
 }
 
-val vertxVersion = "4.4.1"
+val vertxVersion = "4.4.2"
 val junitJupiterVersion = "5.9.1"
 val guavaVersion = "31.1-jre"
 val jcToolsVersion = "4.0.1"
 val configVersion = "1.4.2"
+val picocliVersion = "4.7.3"
 
-val mainVerticleName = "io.techcode.fluxy.Fluxy"
-val launcherClassName = "io.vertx.core.Launcher"
-
-val watchForChange = "src/**/*"
-val doOnChange = "${projectDir}/gradlew classes"
+val launcherClassName = "io.techcode.fluxy.Fluxy"
 
 application {
   mainClass.set(launcherClassName)
@@ -36,6 +33,7 @@ dependencies {
   implementation("com.google.guava:guava:$guavaVersion")
   implementation("com.typesafe:config:$configVersion")
   implementation("org.jctools:jctools-core:$jcToolsVersion")
+  implementation("info.picocli:picocli:$picocliVersion")
   testImplementation("io.vertx:vertx-junit5")
   testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
 }
@@ -47,9 +45,6 @@ java {
 
 tasks.withType<ShadowJar> {
   archiveClassifier.set("fat")
-  manifest {
-    attributes(mapOf("Main-Verticle" to mainVerticleName))
-  }
   mergeServiceFiles()
 }
 
@@ -58,8 +53,4 @@ tasks.withType<Test> {
   testLogging {
     events = setOf(PASSED, SKIPPED, FAILED)
   }
-}
-
-tasks.withType<JavaExec> {
-  args = listOf("run", mainVerticleName, "--redeploy=$watchForChange", "--launcher-class=$launcherClassName", "--on-redeploy=$doOnChange")
 }

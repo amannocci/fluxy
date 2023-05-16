@@ -1,6 +1,7 @@
 package io.techcode.fluxy.pipeline;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Streams;
 import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
 import com.typesafe.config.Config;
@@ -20,6 +21,7 @@ public class Pipeline extends AbstractVerticle {
   private final Map<String, SourceComponent> sources;
   private final Map<String, FlowComponent> flows;
   private final Map<String, SinkComponent> sinks;
+  private final Set<Pipe> pipes;
   private Set<String> uniqueIds;
 
   public Pipeline(Config conf) {
@@ -27,6 +29,7 @@ public class Pipeline extends AbstractVerticle {
     sources = new HashMap<>();
     flows = new HashMap<>();
     sinks = new HashMap<>();
+    pipes = new HashSet<>();
     checkUniqueIds();
     var graphView = generateGraphView();
     generatePipeline(graphView);
@@ -38,7 +41,6 @@ public class Pipeline extends AbstractVerticle {
     checkComponentUniqueIds(uniqueIds, "flows", false);
     checkComponentUniqueIds(uniqueIds, "sinks", true);
     this.uniqueIds = uniqueIds;
-    System.out.println(uniqueIds);
   }
 
   private void checkComponentUniqueIds(Set<String> uniqueIds, String sectionName, boolean shouldExists) {
@@ -68,6 +70,7 @@ public class Pipeline extends AbstractVerticle {
         new SourceComponent(
           ComponentRegistry.INSTANCE.createSource(
             componentConf.getString("type"),
+            this,
             componentConf.getConfig("options")
           )
         )
@@ -88,6 +91,7 @@ public class Pipeline extends AbstractVerticle {
             new FlowComponent(
               ComponentRegistry.INSTANCE.createFlow(
                 componentConf.getString("type"),
+                this,
                 componentConf.getConfig("options")
               )
             )
@@ -109,6 +113,7 @@ public class Pipeline extends AbstractVerticle {
           new SinkComponent(
             ComponentRegistry.INSTANCE.createSink(
               componentConf.getString("type"),
+              this,
               componentConf.getConfig("options")
             )
           )
@@ -128,9 +133,9 @@ public class Pipeline extends AbstractVerticle {
       if (numberOfOutputs == 0) {
         throw new IllegalStateException("Invalid pipeline");
       } else if (numberOfOutputs > 1) {
-        var broadcast = new Broadcast(numberOfOutputs);
+        var broadcast = new Broadcast(this, numberOfOutputs);
         component.fanOut = Optional.of(broadcast);
-        Linker.connectTo(component.source, broadcast);
+        pipes.add(Linker.connectTo(component.source, broadcast));
       }
     }
   }
@@ -149,14 +154,14 @@ public class Pipeline extends AbstractVerticle {
         throw new IllegalStateException("Invalid pipeline");
       }
       if (numberOfInputs > 1) {
-        var merge = new Merge();
+        var merge = new Merge(this);
         component.fanIn = Optional.of(merge);
-        Linker.connectTo(merge, component.flow);
+        pipes.add(Linker.connectTo(merge, component.flow));
       }
       if (numberOfOutputs > 1) {
-        var broadcast = new Broadcast(numberOfOutputs);
+        var broadcast = new Broadcast(this, numberOfOutputs);
         component.fanOut = Optional.of(broadcast);
-        Linker.connectTo(component.flow, broadcast);
+        pipes.add(Linker.connectTo(component.flow, broadcast));
       }
     }
   }
@@ -172,9 +177,9 @@ public class Pipeline extends AbstractVerticle {
       if (numberOfInputs == 0) {
         throw new IllegalStateException("Invalid pipeline");
       } else if (numberOfInputs > 1) {
-        var merge = new Merge();
+        var merge = new Merge(this);
         component.fanIn = Optional.of(merge);
-        Linker.connectTo(merge, component.sink);
+        pipes.add(Linker.connectTo(merge, component.sink));
       }
     }
   }
@@ -194,10 +199,10 @@ public class Pipeline extends AbstractVerticle {
       for (var output : outputs) {
         if (flows.containsKey(output)) {
           var flow = flows.get(output);
-          component.connectTo(flow);
+          pipes.add(component.connectTo(flow));
         } else {
           var sink = sinks.get(output);
-          component.connectTo(sink);
+          pipes.add(component.connectTo(sink));
         }
       }
     }
@@ -210,10 +215,10 @@ public class Pipeline extends AbstractVerticle {
       for (var output : outputs) {
         if (flows.containsKey(output)) {
           var flow = flows.get(output);
-          component.connectTo(flow);
+          pipes.add(component.connectTo(flow));
         } else {
           var sink = sinks.get(output);
-          component.connectTo(sink);
+          pipes.add(component.connectTo(sink));
         }
       }
     }
@@ -221,24 +226,35 @@ public class Pipeline extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) {
-    CompositeFuture.join(sources.values()
-        .stream()
-        .flatMap(SourceComponent::verticles)
-        .map(verticle -> vertx.deployVerticle(verticle))
-        .collect(Collectors.toList())
-      ).compose(e -> CompositeFuture.join(flows.values()
-        .stream()
-        .flatMap(FlowComponent::verticles)
-        .map(verticle -> vertx.deployVerticle(verticle))
-        .collect(Collectors.toList()))
-      ).compose(e -> CompositeFuture.join(sinks.values()
-        .stream()
-        .flatMap(SinkComponent::verticles)
-        .map(verticle -> vertx.deployVerticle(verticle))
-        .collect(Collectors.toList()))
-      )
+    CompositeFuture.all(Streams.concat(
+        sources.values()
+          .stream()
+          .flatMap(SourceComponent::verticles)
+          .map(verticle -> vertx.deployVerticle(verticle)),
+        flows.values()
+          .stream()
+          .flatMap(FlowComponent::verticles)
+          .map(verticle -> vertx.deployVerticle(verticle)),
+        sinks.values()
+          .stream()
+          .flatMap(SinkComponent::verticles)
+          .map(verticle -> vertx.deployVerticle(verticle))
+      ).collect(Collectors.toList()))
       .onFailure(startPromise::fail)
-      .onSuccess(e -> startPromise.complete());
+      .onSuccess(ids -> startPromise.complete());
+  }
+
+  @Override
+  public void stop() {
+    if (isFlushed()) {
+      System.out.println("Succeed to flush pipeline");
+    } else {
+      System.err.println("Failed to flush pipeline");
+    }
+  }
+
+  public boolean isFlushed() {
+    return pipes.stream().allMatch(Pipe::isEmpty);
   }
 
   private static class SourceComponent {
@@ -250,27 +266,27 @@ public class Pipeline extends AbstractVerticle {
       fanOut = Optional.empty();
     }
 
-    public void connectTo(FlowComponent component) {
+    public Pipe connectTo(FlowComponent component) {
       if (fanOut.isEmpty() && component.fanIn.isEmpty()) {
-        Linker.connectTo(source, component.flow);
+        return Linker.connectTo(source, component.flow);
       } else if (fanOut.isPresent() && component.fanIn.isEmpty()) {
-        Linker.connectTo(fanOut.get(), component.flow);
+        return Linker.connectTo(fanOut.get(), component.flow);
       } else if (fanOut.isEmpty()) {
-        Linker.connectTo(source, component.fanIn.get());
+        return Linker.connectTo(source, component.fanIn.get());
       } else {
-        Linker.connectTo(fanOut.get(), component.fanIn.get());
+        return Linker.connectTo(fanOut.get(), component.fanIn.get());
       }
     }
 
-    public void connectTo(SinkComponent component) {
+    public Pipe connectTo(SinkComponent component) {
       if (fanOut.isEmpty() && component.fanIn.isEmpty()) {
-        Linker.connectTo(source, component.sink);
+        return Linker.connectTo(source, component.sink);
       } else if (fanOut.isPresent() && component.fanIn.isEmpty()) {
-        Linker.connectTo(fanOut.get(), component.sink);
+        return Linker.connectTo(fanOut.get(), component.sink);
       } else if (fanOut.isEmpty()) {
-        Linker.connectTo(source, component.fanIn.get());
+        return Linker.connectTo(source, component.fanIn.get());
       } else {
-        Linker.connectTo(fanOut.get(), component.fanIn.get());
+        return Linker.connectTo(fanOut.get(), component.fanIn.get());
       }
     }
 
@@ -292,27 +308,27 @@ public class Pipeline extends AbstractVerticle {
       fanOut = Optional.empty();
     }
 
-    public void connectTo(FlowComponent component) {
+    public Pipe connectTo(FlowComponent component) {
       if (fanOut.isEmpty() && component.fanIn.isEmpty()) {
-        Linker.connectTo(flow, component.flow);
+        return Linker.connectTo(flow, component.flow);
       } else if (fanOut.isPresent() && component.fanIn.isEmpty()) {
-        Linker.connectTo(fanOut.get(), component.flow);
+        return Linker.connectTo(fanOut.get(), component.flow);
       } else if (fanOut.isEmpty()) {
-        Linker.connectTo(flow, component.fanIn.get());
+        return Linker.connectTo(flow, component.fanIn.get());
       } else {
-        Linker.connectTo(fanOut.get(), component.fanIn.get());
+        return Linker.connectTo(fanOut.get(), component.fanIn.get());
       }
     }
 
-    public void connectTo(SinkComponent component) {
+    public Pipe connectTo(SinkComponent component) {
       if (fanOut.isEmpty() && component.fanIn.isEmpty()) {
-        Linker.connectTo(flow, component.sink);
+        return Linker.connectTo(flow, component.sink);
       } else if (fanOut.isPresent() && component.fanIn.isEmpty()) {
-        Linker.connectTo(fanOut.get(), component.sink);
+        return Linker.connectTo(fanOut.get(), component.sink);
       } else if (fanOut.isEmpty()) {
-        Linker.connectTo(flow, component.fanIn.get());
+        return Linker.connectTo(flow, component.fanIn.get());
       } else {
-        Linker.connectTo(fanOut.get(), component.fanIn.get());
+        return Linker.connectTo(fanOut.get(), component.fanIn.get());
       }
     }
 

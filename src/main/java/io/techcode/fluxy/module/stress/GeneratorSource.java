@@ -4,6 +4,7 @@ import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 import io.techcode.fluxy.component.Source;
 import io.techcode.fluxy.event.Event;
+import io.techcode.fluxy.pipeline.Pipeline;
 import io.vertx.core.json.JsonObject;
 
 import java.util.Iterator;
@@ -12,7 +13,8 @@ public class GeneratorSource extends Source {
 
   private final Iterator<String> lines;
 
-  public GeneratorSource(Config options) {
+  public GeneratorSource(Pipeline pipeline, Config options) {
+    super(pipeline);
     this.lines = Iterators.cycle(options.getStringList("lines"));
   }
 
@@ -28,12 +30,6 @@ public class GeneratorSource extends Source {
   }
 
   protected void onPush() {
-    // Handle shutdown
-    if (isStopping()) {
-      shutdown();
-      return;
-    }
-
     vertx.runOnContext(a -> {
       int remainingCapacity = out.remainingCapacity();
       for (int i = 0; i < remainingCapacity; i++) {

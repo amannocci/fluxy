@@ -3,10 +3,12 @@ package io.techcode.fluxy.module.std;
 import com.typesafe.config.Config;
 import io.techcode.fluxy.component.Sink;
 import io.techcode.fluxy.event.Event;
+import io.techcode.fluxy.pipeline.Pipeline;
 
 public class StdoutSink extends Sink {
 
-  public StdoutSink(Config options) {
+  public StdoutSink(Pipeline pipeline, Config options) {
+    super(pipeline);
   }
 
   @Override

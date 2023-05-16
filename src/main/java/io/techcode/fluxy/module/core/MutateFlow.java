@@ -3,10 +3,12 @@ package io.techcode.fluxy.module.core;
 import com.typesafe.config.Config;
 import io.techcode.fluxy.component.Flow;
 import io.techcode.fluxy.event.Event;
+import io.techcode.fluxy.pipeline.Pipeline;
 
 public class MutateFlow extends Flow {
 
-  public MutateFlow(Config options) {
+  public MutateFlow(Pipeline pipeline, Config options) {
+    super(pipeline);
   }
 
   @Override

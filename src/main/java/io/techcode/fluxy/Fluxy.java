@@ -1,42 +1,33 @@
 package io.techcode.fluxy;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import io.techcode.fluxy.pipeline.Pipeline;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Future;
-import io.vertx.core.Promise;
+import io.techcode.fluxy.command.RunCommand;
+import io.techcode.fluxy.command.VersionCommand;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.Spec;
 
-import java.util.Optional;
+@Command(
+  description = "Experimental high-performance events processor",
+  version = "0.0.1-dev",
+  subcommands = {
+    VersionCommand.class,
+    RunCommand.class
+  }
+)
+public class Fluxy implements Runnable {
 
-public class Fluxy extends AbstractVerticle {
+  @Spec
+  CommandSpec spec;
 
-  private Optional<String> mainPipelineId = Optional.empty();
-
-  @Override
-  public void start(Promise<Void> startPromise){
-    vertx.exceptionHandler(Throwable::printStackTrace);
-
-    Config conf = ConfigFactory.load();
-    Pipeline pipeline = new Pipeline(conf.getConfig("pipeline"));
-    vertx.deployVerticle(pipeline)
-      .onSuccess(id -> {
-        mainPipelineId = Optional.of(id);
-        startPromise.complete();
-      })
-      .onFailure(err -> {
-        err.printStackTrace();
-        startPromise.fail(err);
-        vertx.close();
-      });
+  public static void main(String... args) {
+    int rc = new CommandLine(new Fluxy()).execute(args);
+    System.exit(rc);
   }
 
-  @Override
-  public void stop(Promise<Void> stopPromise) {
-    var undeploy = mainPipelineId.map(id -> vertx.undeploy(id)).orElse(Future.succeededFuture());
-    undeploy
-      .onSuccess(e -> stopPromise.complete())
-      .onFailure(stopPromise::fail);
+  public void run() {
+    throw new ParameterException(spec.commandLine(), "Missing required subcommand");
   }
 
 }

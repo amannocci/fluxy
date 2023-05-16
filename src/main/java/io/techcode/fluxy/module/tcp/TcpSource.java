@@ -3,6 +3,11 @@ package io.techcode.fluxy.module.tcp;
 import com.typesafe.config.Config;
 import io.techcode.fluxy.component.Source;
 import io.techcode.fluxy.event.Event;
+import io.techcode.fluxy.pipeline.Pipeline;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetServer;
 import io.vertx.core.net.NetSocket;
@@ -17,7 +22,8 @@ public class TcpSource extends Source {
 
   private boolean isPaused = false;
 
-  public TcpSource(Config options) {
+  public TcpSource(Pipeline pipeline, Config options) {
+    super(pipeline);
     connections = new HashMap<>();
   }
 
@@ -31,9 +37,16 @@ public class TcpSource extends Source {
   }
 
   @Override
-  public void stop() {
+  public void stop(Promise<Void> stopPromise) {
+    System.out.println("Closing server");
     connections.clear();
-    server.close();
+    server.close().onComplete(evt -> {
+      if (evt.succeeded()) {
+        stopPromise.complete();
+      } else {
+        stopPromise.fail(evt.cause());
+      }
+    });
   }
 
   @Override

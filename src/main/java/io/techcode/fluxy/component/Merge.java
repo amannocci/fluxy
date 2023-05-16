@@ -3,6 +3,7 @@ package io.techcode.fluxy.component;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import io.techcode.fluxy.event.Event;
+import io.techcode.fluxy.pipeline.Pipeline;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
 
@@ -14,7 +15,8 @@ public class Merge extends Component implements Handler<Void> {
   protected Mailbox pipeAvailableMailbox;
   protected Mailbox pipeUnavailableMailbox;
 
-  public Merge() {
+  public Merge(Pipeline pipeline) {
+    super(pipeline);
     in = new Pipe(Pipe.DEFAULT_CAPACITY * 2, true);
   }
 

@@ -1,6 +1,7 @@
 package io.techcode.fluxy.component;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import io.techcode.fluxy.event.Event;
 import org.jctools.queues.MessagePassingQueue;
@@ -124,6 +125,19 @@ public class Pipe {
       isBackPressure.set(true);
       onUnavailableDispatchers.forEach(Mailbox::dispatch);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Pipe pipe = (Pipe) o;
+    return id == pipe.id;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(id);
   }
 
   @Override
