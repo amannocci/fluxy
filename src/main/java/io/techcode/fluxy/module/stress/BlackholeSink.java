@@ -8,7 +8,7 @@ public class BlackholeSink extends Sink {
 
 
   public BlackholeSink(Pipeline pipeline, Config options) {
-    super(pipeline);
+    super(pipeline, options);
   }
 
   @Override

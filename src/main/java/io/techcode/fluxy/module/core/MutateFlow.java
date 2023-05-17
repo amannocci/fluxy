@@ -8,7 +8,7 @@ import io.techcode.fluxy.pipeline.Pipeline;
 public class MutateFlow extends Flow {
 
   public MutateFlow(Pipeline pipeline, Config options) {
-    super(pipeline);
+    super(pipeline, options);
   }
 
   @Override

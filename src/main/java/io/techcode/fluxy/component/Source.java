@@ -2,6 +2,7 @@ package io.techcode.fluxy.component;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
 import io.techcode.fluxy.pipeline.Pipeline;
 import io.vertx.core.Context;
 
@@ -11,8 +12,8 @@ public abstract class Source extends Component {
   protected Mailbox pipeUnavailableMailbox;
   protected Pipe out;
 
-  public Source(Pipeline pipeline) {
-    super(pipeline);
+  public Source(Pipeline pipeline, Config options) {
+    super(pipeline, options);
   }
 
   @Override

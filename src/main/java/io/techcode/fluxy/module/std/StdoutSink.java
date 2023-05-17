@@ -8,7 +8,7 @@ import io.techcode.fluxy.pipeline.Pipeline;
 public class StdoutSink extends Sink {
 
   public StdoutSink(Pipeline pipeline, Config options) {
-    super(pipeline);
+    super(pipeline, options);
   }
 
   @Override
