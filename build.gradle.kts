@@ -20,6 +20,7 @@ val guavaVersion = "31.1-jre"
 val jcToolsVersion = "4.0.1"
 val configVersion = "1.4.2"
 val picocliVersion = "4.7.3"
+val commonsTextVersion = "1.10.0"
 
 val launcherClassName = "io.techcode.fluxy.Fluxy"
 
@@ -34,6 +35,7 @@ dependencies {
   implementation("com.typesafe:config:$configVersion")
   implementation("org.jctools:jctools-core:$jcToolsVersion")
   implementation("info.picocli:picocli:$picocliVersion")
+  implementation("org.apache.commons:commons-text:$commonsTextVersion")
   testImplementation("io.vertx:vertx-junit5")
   testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
 }
